@@ -2,7 +2,7 @@
 using NAudio.Lame;
 using NAudio.Wave;
 
-namespace AudioRecorder
+namespace RecordSoundApp
 {
     class Program
     {
