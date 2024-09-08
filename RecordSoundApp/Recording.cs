@@ -1,5 +1,6 @@
 ﻿using NAudio.Lame;
 using NAudio.Wave;
+using System.Net.Sockets;
 
 namespace RecordSoundApp
 {
@@ -37,14 +38,35 @@ namespace RecordSoundApp
             IsRecording = true;
         }
 
+        public void StartRecordingStreaming(NetworkStream stream, CancellationToken cancellationToken)
+        {
+            _capture = new WasapiLoopbackCapture();
+
+            _capture.DataAvailable += async (s, a) =>
+            {
+                try
+                {
+                    await Utils.SendResponse(stream, new { Code = 210, Message = "Send Data", Data = a.Buffer }, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    StopRecording();
+                }
+            };
+
+            _capture.StartRecording();
+
+            IsRecording = true;
+        }
+
         public void StopRecording()
         {
+            IsRecording = false;
             _capture?.StopRecording();
             _writer?.Dispose();
             _mp3File?.Close();
             _capture?.Dispose();
-
-            IsRecording = false;
         }
     }
 }

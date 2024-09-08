@@ -32,32 +32,45 @@ namespace RecordSoundApp
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                var client = await _listener.AcceptTcpClientAsync(stoppingToken);
-
-                var buffer = new byte[1024];
-
-                var stream = client.GetStream();
-
-                int bytesRead;
-
-                while ((bytesRead = await stream.ReadAsync(buffer, stoppingToken)) != 0)
+                try
                 {
-                    var message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                    var client = await _listener.AcceptTcpClientAsync(stoppingToken);
 
-                    if (string.IsNullOrEmpty(message)) continue;
+                    var buffer = new byte[1024];
 
-                    try
+                    var stream = client.GetStream();
+
+                    int bytesRead;
+
+                    while ((bytesRead = await stream.ReadAsync(buffer, stoppingToken)) != 0)
                     {
+                        var message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+
+                        if (string.IsNullOrEmpty(message)) continue;
+
                         var data = JsonSerializer.Deserialize<Request>(message) ?? throw new Exception($"Deserialize error: {message}");
 
-                        string response = _command.Execute(data.Command, data.Path);
+                        try
+                        {
+                            var response = _command.Execute(new RequestCommand()
+                            {
+                                Command = data.Command,
+                                Path = data.Path,
+                                CancellationToken = stoppingToken,
+                                Stream = stream
+                            });
 
-                        await Utils.SendResponse(stream, new { Code = 200, Message = response }, stoppingToken);
+                            await Utils.SendResponse(stream, response, stoppingToken);
+                        }
+                        catch (Exception ex)
+                        {
+                            await Utils.SendResponse(stream, new { Code = 500, ex.Message }, stoppingToken);
+                        }
                     }
-                    catch (Exception ex)
-                    {
-                        await Utils.SendResponse(stream, new { Code = 500, ex.Message }, stoppingToken);
-                    }
+                } 
+                catch (Exception error)
+                {
+                    Console.Write(error.Message);
                 }
             }
         }

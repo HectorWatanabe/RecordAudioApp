@@ -9,25 +9,51 @@
             recording = new Recording();
         }
 
-        public string Execute(string command, string path)
+        public ResponseCommand Execute(RequestCommand request)
         {
-            if (string.IsNullOrEmpty(command))
+            if (string.IsNullOrEmpty(request.Command))
             {
                 throw new Exception("Command is empty.");
             }
 
-            switch (command)
+            switch (request.Command)
             {
                 case "start":
                     {
+                        if (string.IsNullOrEmpty(request.Path))
+                        {
+                            throw new Exception("Path is required.");
+                        }
+
                         if (recording.IsRecording)
                         {
                             throw new Exception("There is already a recording in progress.");
                         }
 
-                        recording.StartRecording(path);
+                        recording.StartRecording(request.Path);
 
-                        return "Recording in progress..";
+                        return new ResponseCommand { Code = 200, Message = "Recording in progress.." };
+                    }
+                case "start-streaming":
+                    {
+                        if (request.Stream == null)
+                        {
+                            throw new Exception("Stream is required.");
+                        }
+
+                        if (request.CancellationToken == null)
+                        {
+                            throw new Exception("Cancellation Token is required.");
+                        }
+
+                        if (recording.IsRecording)
+                        {
+                            throw new Exception("There is already a recording in progress.");
+                        }
+
+                        recording.StartRecordingStreaming(request.Stream, request.CancellationToken.Value);
+
+                        return new ResponseCommand { Code = 200, Message = "Recording in progress.." };
                     }
                 case "stop":
                     {
@@ -38,7 +64,7 @@
 
                         recording.StopRecording();
 
-                        return "Recording is stopped";
+                        return new ResponseCommand { Code = 220, Message = "Recording is stopped" };
                     }
                 default:
                     {
